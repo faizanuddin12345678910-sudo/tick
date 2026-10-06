@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tic-Tac-Toe Birthday Quest</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            outfit: ['Outfit', 'sans-serif'],
+            fredoka: ['Fredoka', 'cursive'],
+          },
+          animation: {
+            'bounce-slow': 'bounce 2s infinite',
+            'float': 'float 4s ease-in-out infinite',
+            'pulse-glow': 'pulseGlow 2s infinite',
+            'sparkle': 'sparkle 1.5s ease-in-out infinite alternate',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-15px)' },
+            },
+            pulseGlow: {
+              '0%, 100%': { opacity: '1', transform: 'scale(1)' },
+              '50%': { opacity: '0.85', transform: 'scale(1.03)' },
+            },
+            sparkle: {
+              '0%': { transform: 'scale(0.8) rotate(0deg)', opacity: '0.6' },
+              '100%': { transform: 'scale(1.2) rotate(180deg)', opacity: '1' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Outfit', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      overflow-x: hidden;
+    }
+
+    .cell-btn {
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .cell-btn:active {
+      transform: scale(0.92);
+    }
+
+    .winning-cell {
+      animation: pulseGlow 0.8s infinite alternate;
+      background: rgba(236, 72, 153, 0.25) !important;
+      border-color: #ec4899 !important;
+    }
+
+    /* Glassmorphism effects */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+    }
+
+    /* Glow text */
+    .bday-glow {
+      text-shadow: 0 0 20px rgba(236, 72, 153, 0.6), 0 0 40px rgba(168, 85, 247, 0.4);
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-indigo-950 to-purple-950 text-slate-100 min-h-screen flex flex-col justify-between relative">
+
+  <!-- Background Animated Particles Canvas -->
+  <canvas id="particleCanvas" class="fixed inset-0 pointer-events-none z-0"></canvas>
+
+  <!-- Audio Toggle Floating Button -->
+  <button id="soundToggle" class="fixed top-4 right-4 z-50 bg-slate-800/80 hover:bg-slate-700/80 text-amber-400 p-3 rounded-full shadow-lg backdrop-blur-md transition border border-slate-700 focus:outline-none" title="Toggle Sound Effects">
+    <i id="soundIcon" class="fas fa-volume-up text-lg"></i>
+  </button>
+
+  <!-- MAIN CONTAINER -->
+  <div class="relative z-10 w-full min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- ==================== VIEW 1: TIC TAC TOE GAME ==================== -->
+    <main id="gameView" class="w-full max-w-md flex flex-col items-center transition-all duration-700 ease-in-out transform">
+      
+      <!-- Header / Title -->
+      <div class="text-center mb-6">
+        <span class="px-3 py-1 bg-pink-500/20 text-pink-300 text-xs font-semibold uppercase tracking-wider rounded-full border border-pink-500/30">
+          <i class="fas fa-gift mr-1"></i> Special Win Surprise
+        </span>
+        <h1 class="text-4xl md:text-5xl font-black font-fredoka mt-2 bg-clip-text text-transparent bg-gradient-to-r from-pink-400 via-purple-300 to-indigo-300">
+          Tic Tac Toe
+        </h1>
+        <p class="text-slate-400 text-sm mt-1">Win a round to reveal your special birthday gift!</p>
+
+        <!-- Customize Birthday Wish Trigger Button -->
+        <button id="openCustomizeBtn" class="mt-3 px-3.5 py-1.5 bg-purple-900/60 hover:bg-purple-800/80 text-pink-300 border border-pink-500/40 rounded-full text-xs font-semibold transition flex items-center gap-1.5 mx-auto shadow-sm hover:scale-105">
+          <i class="fas fa-edit"></i> Customize Friend's Photo & Wish
+        </button>
+      </div>
+
+      <!-- Mode Selector & Game Controls -->
+      <div class="w-full glass-card bg-slate-900/60 border-slate-800 rounded-2xl p-2 mb-6 flex justify-between items-center shadow-xl">
+        <button id="modeVsAI" class="flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 bg-pink-600 text-white shadow-md flex items-center justify-center gap-2">
+          <i class="fas fa-robot"></i> vs Computer
+        </button>
+        <button id="modeVsFriend" class="flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold text-slate-400 hover:text-white transition-all duration-300 flex items-center justify-center gap-2">
+          <i class="fas fa-user-friends"></i> 2 Players
+        </button>
+      </div>
+
+      <!-- Turn & Status Indicator -->
+      <div class="w-full flex items-center justify-between mb-4 px-2">
+        <div id="playerXBadge" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800/80 border border-slate-700 shadow-sm transition-all duration-300">
+          <span class="text-pink-400 font-bold text-xl">X</span>
+          <span id="playerXLabel" class="text-xs text-slate-300 font-medium">Player (You)</span>
+        </div>
+        
+        <div id="statusMessage" class="text-sm font-bold text-slate-300 text-center px-2">
+          Your Turn
+        </div>
+
+        <div id="playerOBadge" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800/40 border border-slate-800 shadow-sm opacity-60 transition-all duration-300">
+          <span class="text-cyan-400 font-bold text-xl">O</span>
+          <span id="playerOLabel" class="text-xs text-slate-300 font-medium">AI Bot</span>
+        </div>
+      </div>
+
+      <!-- 3x3 Tic Tac Toe Grid -->
+      <div class="w-full aspect-square bg-slate-900/80 p-4 rounded-3xl border border-slate-800/80 shadow-2xl backdrop-blur-md grid grid-cols-3 gap-3">
+        <!-- 9 Grid Buttons -->
+        <button class="cell-btn bg-slate-800/90 hover:bg-slate-700/80 border border-slate-700/60 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl font-black text-slate-100 transition shadow-inner focus:outline-none" data-index="0"></button>
+        <button class="cell-btn bg-slate-800/90 hover:bg-slate-700/80 border border-slate-700/60 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl font-black text-slate-100 transition shadow-inner focus:outline-none" data-index="1"></button>
+        <button class="cell-btn bg-slate-800/90 hover:bg-slate-700/80 border border-slate-700/60 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl font-black text-slate-100 transition shadow-inner focus:outline-none" data-index="2"></button>
+        <button class="cell-btn bg-slate-800/90 hover:bg-slate-700/80 border border-slate-700/60 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl font-black text-slate-100 transition shadow-inner focus:outline-none" data-index="3"></button>
+        <button class="cell-btn bg-slate-800/90 hover:bg-slate-700/80 border border-slate-700/60 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl font-black text-slate-100 transition shadow-inner focus:outline-none" data-index="4"></button>
+        <button class="cell-btn bg-slate-800/90 hover:bg-slate-700/80 border border-slate-700/60 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl font-black text-slate-100 transition shadow-inner focus:outline-none" data-index="5"></button>
+        <button class="cell-btn bg-slate-800/90 hover:bg-slate-700/80 border border-slate-700/60 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl font-black text-slate-100 transition shadow-inner focus:outline-none" data-index="6"></button>
+        <button class="cell-btn bg-slate-800/90 hover:bg-slate-700/80 border border-slate-700/60 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl font-black text-slate-100 transition shadow-inner focus:outline-none" data-index="7"></button>
+        <button class="cell-btn bg-slate-800/90 hover:bg-slate-700/80 border border-slate-700/60 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl font-black text-slate-100 transition shadow-inner focus:outline-none" data-index="8"></button>
+      </div>
+
+      <!-- Action Footer Buttons -->
+      <div class="mt-6 flex items-center gap-4 w-full">
+        <button id="resetGameBtn" class="flex-1 py-3 px-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-300 font-semibold text-sm transition flex items-center justify-center gap-2 shadow-md">
+          <i class="fas fa-redo-alt text-xs"></i> Reset Board
+        </button>
+      </div>
+
+      <!-- Message box if tie/draw -->
+      <div id="drawNotification" class="hidden mt-4 w-full p-3 bg-amber-500/20 border border-amber-500/40 rounded-xl text-amber-200 text-xs text-center">
+        It's a draw! Click reset to try again for your birthday surprise.
+      </div>
+    </main>
+
+
+    <!-- ==================== VIEW 2: HAPPY BIRTHDAY PAGE ==================== -->
+    <section id="birthdayView" class="hidden opacity-0 transform scale-95 transition-all duration-1000 ease-out w-full max-w-2xl flex flex-col items-center text-center my-auto py-8 px-4">
+      
+      <!-- Sparkle Icon Header -->
+      <div class="relative mb-2">
+        <div class="text-amber-400 text-5xl animate-bounce-slow">
+          <i class="fas fa-crown"></i>
+        </div>
+      </div>
+
+      <!-- Grand Title -->
+      <h1 id="bdayTitle" class="text-5xl sm:text-7xl md:text-8xl font-black font-fredoka tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-pink-400 via-amber-300 to-purple-400 bday-glow mb-4 animate-pulse-glow">
+        Happy Birthday!
+      </h1>
+
+      <p id="bdaySubheading" class="text-xl sm:text-2xl text-purple-200 font-medium max-w-lg mb-8 leading-relaxed">
+        🎉 You won the game and unlocked your birthday wish! 🎉
+      </p>
+
+      <!-- Interactive Birthday Cake Component -->
+      <div class="relative my-4 group cursor-pointer" id="cakeContainer" title="Click candles to blow them out!">
+        <div class="w-48 h-48 sm:w-56 sm:h-56 relative flex flex-col items-center justify-end">
+          
+          <!-- Candles & Flames -->
+          <div class="flex gap-4 mb-1 z-20">
+            <div class="candle flex flex-col items-center">
+              <div class="flame w-3 h-5 bg-amber-400 rounded-full animate-pulse shadow-[0_0_12px_#f59e0b]"></div>
+              <div class="w-2 h-8 bg-gradient-to-b from-pink-300 to-pink-500 rounded-t"></div>
+            </div>
+            <div class="candle flex flex-col items-center">
+              <div class="flame w-3 h-5 bg-amber-400 rounded-full animate-pulse shadow-[0_0_12px_#f59e0b] delay-100"></div>
+              <div class="w-2 h-10 bg-gradient-to-b from-yellow-300 to-yellow-500 rounded-t"></div>
+            </div>
+            <div class="candle flex flex-col items-center">
+              <div class="flame w-3 h-5 bg-amber-400 rounded-full animate-pulse shadow-[0_0_12px_#f59e0b] delay-200"></div>
+              <div class="w-2 h-8 bg-gradient-to-b from-cyan-300 to-cyan-500 rounded-t"></div>
+            </div>
+          </div>
+
+          <!-- Cake Layers -->
+          <div class="w-36 h-12 bg-pink-400 rounded-t-xl border-b-4 border-pink-500 flex items-center justify-around px-2 shadow-md">
+            <div class="w-3 h-3 bg-white rounded-full"></div>
+            <div class="w-3 h-3 bg-white rounded-full"></div>
+            <div class="w-3 h-3 bg-white rounded-full"></div>
+          </div>
+          <div class="w-48 h-16 bg-purple-500 rounded-b-xl border-t-4 border-purple-400 flex items-center justify-center relative shadow-xl overflow-hidden">
+            <div class="absolute inset-x-0 top-0 h-3 bg-pink-300 rounded-b-lg"></div>
+            <span class="text-white text-xs font-bold tracking-widest uppercase mt-2">WISH GRANTED</span>
+          </div>
+
+          <!-- Cake Plate -->
+          <div class="w-56 h-3 bg-slate-300 rounded-full shadow-lg mt-1"></div>
+        </div>
+      </div>
+
+      <p class="text-xs text-slate-400 mb-8 italic">Tip: Click the candles to blow them out!</p>
+
+      <!-- Photo Showcase Card with Custom Upload -->
+      <div class="w-full glass-card bg-slate-900/70 border-slate-700/80 rounded-2xl p-4 shadow-2xl mb-8 max-w-md flex flex-col items-center relative overflow-hidden group">
+        <div class="relative w-full overflow-hidden rounded-xl border-2 border-pink-500/40 shadow-lg bg-slate-950 flex items-center justify-center min-h-[220px]">
+          <!-- Ambient blurred background fill for vertical/horizontal photos -->
+          <img id="birthdayPhotoBg" src="https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&q=80&w=600" alt="Background Blur" class="absolute inset-0 w-full h-full object-cover blur-xl opacity-40 scale-110 pointer-events-none" />
+          <!-- Main Photo - Shows full picture without cropping upper/bottom parts -->
+          <img id="birthdayPhoto" src="https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&q=80&w=600" alt="Birthday Special" class="relative z-10 w-full max-h-80 sm:max-h-[360px] object-contain rounded-lg transition-transform duration-500 group-hover:scale-105 drop-shadow-md" onerror="this.src='https://placehold.co/600x400/831843/ffffff?text=Happy+Birthday!'" />
+          <div class="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent pointer-events-none z-20"></div>
+          <span class="absolute bottom-3 left-3 bg-pink-600/90 text-white text-xs px-2.5 py-1 rounded-full font-semibold shadow-md backdrop-blur-sm z-30">
+            <i class="fas fa-heart text-amber-300 mr-1"></i> Special Memory
+          </span>
+        </div>
+        
+        <!-- Upload Photo Controls -->
+        <div class="mt-3 flex items-center justify-between w-full px-1">
+          <span class="text-xs text-slate-400">Want to customize this photo?</span>
+          <button id="openCustomizeBtn2" class="py-1.5 px-3 bg-pink-600/80 hover:bg-pink-500 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5 shadow hover:scale-105">
+            <i class="fas fa-cog"></i> Edit Card
+          </button>
+        </div>
+      </div>
+
+      <!-- Personalized Message Box -->
+      <div class="w-full glass-card bg-slate-900/70 border-slate-700/80 rounded-2xl p-6 shadow-2xl mb-8 max-w-md text-left relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-pink-500 to-purple-600"></div>
+        <h3 class="text-lg font-bold text-pink-300 mb-2 flex items-center gap-2">
+          <i class="fas fa-envelope-open-text"></i> Special Birthday Message
+        </h3>
+        <p class="text-slate-300 text-sm leading-relaxed" id="birthdayCustomMsg">
+          May your year ahead be filled with laughter, joy, boundless success, and endless reason to celebrate! Keep shining bright! 🌟
+        </p>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-wrap items-center justify-center gap-4">
+        <button id="playAgainBtn" class="py-3 px-6 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg transition transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2">
+          <i class="fas fa-play text-xs"></i> Play Game Again
+        </button>
+        <button id="musicToggleBtn" class="py-3 px-6 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-semibold rounded-xl shadow-md transition flex items-center gap-2">
+          <i class="fas fa-music"></i> Play Song
+        </button>
+      </div>
+
+    </section>
+
+    <!-- CUSTOMIZE BIRTHDAY CARD MODAL -->
+    <div id="customizeModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 transition-opacity duration-300">
+      <div class="glass-card bg-slate-900/95 border-slate-700/80 rounded-3xl p-6 max-w-lg w-full shadow-2xl relative max-h-[90vh] overflow-y-auto text-left">
+        <button id="closeCustomizeBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2 rounded-full focus:outline-none">
+          <i class="fas fa-times text-lg"></i>
+        </button>
+
+        <h2 class="text-2xl font-black font-fredoka text-pink-400 mb-1 flex items-center gap-2">
+          <i class="fas fa-magic"></i> Set Friend's Photo & Wish
+        </h2>
+        <p class="text-slate-400 text-xs mb-5">Save your friend's photo and name permanently so it opens automatically for them!</p>
+
+        <form id="customizeForm" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Friend's Name</label>
+            <input type="text" id="customNameInput" placeholder="e.g. Alex" class="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-pink-500" required />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Friend's Photo</label>
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center gap-2">
+                <label for="customPhotoFile" class="flex-1 py-2.5 px-3 bg-pink-600/80 hover:bg-pink-500 text-white text-xs font-semibold rounded-xl cursor-pointer text-center transition flex items-center justify-center gap-1.5 shadow">
+                  <i class="fas fa-upload"></i> Upload Photo from Device
+                </label>
+                <input type="file" id="customPhotoFile" accept="image/*" class="hidden" />
+              </div>
+              <div class="text-center text-[10px] uppercase font-bold text-slate-500">OR Paste Direct Image URL</div>
+              <input type="url" id="customPhotoUrl" placeholder="https://example.com/friend-photo.jpg" class="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-pink-500" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Photo Fit Style</label>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="flex items-center gap-2 p-2.5 bg-slate-800/80 border border-slate-700/80 rounded-xl cursor-pointer text-xs text-slate-200 hover:border-pink-500/50 transition">
+                <input type="radio" name="fitMode" value="contain" id="fitContain" checked class="accent-pink-500" />
+                <span>Show Whole Photo (No Crop)</span>
+              </label>
+              <label class="flex items-center gap-2 p-2.5 bg-slate-800/80 border border-slate-700/80 rounded-xl cursor-pointer text-xs text-slate-200 hover:border-pink-500/50 transition">
+                <input type="radio" name="fitMode" value="cover" id="fitCover" class="accent-pink-500" />
+                <span>Fill Frame (Crop Sides)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Live Preview Box -->
+          <div class="flex items-center gap-3 bg-slate-800/60 p-3 rounded-xl border border-slate-700/60">
+            <img id="customPhotoPreview" src="https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&q=80&w=600" class="w-14 h-14 object-cover rounded-lg border border-pink-500/40 shadow-sm" />
+            <div class="text-xs text-slate-400">
+              <span class="font-semibold text-slate-200 block">Live Photo Preview</span>
+              This image will be stored permanently for your friend.
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Personal Birthday Message</label>
+            <textarea id="customMsgInput" rows="3" placeholder="Write a heartwarming birthday wish..." class="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-pink-500 resize-none" required></textarea>
+          </div>
+
+          <button type="submit" id="saveWishBtn" class="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg transition flex items-center justify-center gap-2 active:scale-95">
+            <i class="fas fa-save"></i> Save Photo & Wish Permanently
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toastNotification" class="fixed bottom-6 right-6 z-50 bg-pink-600 text-white text-xs font-bold px-4 py-3 rounded-xl shadow-2xl transition-all duration-300 transform translate-y-20 opacity-0 flex items-center gap-2">
+      <i class="fas fa-check-circle text-base"></i>
+      <span id="toastMsg">Saved permanently!</span>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <footer class="relative z-10 py-4 text-center text-xs text-slate-500">
+    Designed for your special day • Enjoy Tic Tac Toe!
+  </footer>
+
+  <script>
+    /* ================= AUDIO ENGINE (Web Audio API) ================= */
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+        this.songInterval = null;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+      }
+
+      playTone(freq, duration = 0.15, type = 'sine', gainVal = 0.1) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+
+          gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        } catch(e) {
+          console.error(e);
+        }
+      }
+
+      playMoveX() {
+        this.playTone(523.25, 0.12, 'sine', 0.15); // C5
+      }
+
+      playMoveO() {
+        this.playTone(392.00, 0.12, 'sine', 0.15); // G4
+      }
+
+      playWinSFX() {
+        if (this.muted) return;
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C E G C
+        notes.forEach((freq, index) => {
+          setTimeout(() => {
+            this.playTone(freq, 0.25, 'triangle', 0.2);
+          }, index * 120);
+        });
+      }
+
+      playHappyBirthdaySong() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        // Tune Notes (Happy Birthday)
+        const notes = [
+          { f: 261.63, d: 0.3 }, { f: 261.63, d: 0.3 }, { f: 293.66, d: 0.6 }, { f: 261.63, d: 0.6 }, { f: 349.23, d: 0.6 }, { f: 329.63, d: 1.0 },
+          { f: 261.63, d: 0.3 }, { f: 261.63, d: 0.3 }, { f: 293.66, d: 0.6 }, { f: 261.63, d: 0.6 }, { f: 392.00, d: 0.6 }, { f: 349.23, d: 1.0 },
+          { f: 261.63, d: 0.3 }, { f: 261.63, d: 0.3 }, { f: 523.25, d: 0.6 }, { f: 440.00, d: 0.6 }, { f: 349.23, d: 0.6 }, { f: 329.63, d: 0.6 }, { f: 293.66, d: 0.8 },
+          { f: 466.16, d: 0.3 }, { f: 466.16, d: 0.3 }, { f: 440.00, d: 0.6 }, { f: 349.23, d: 0.6 }, { f: 392.00, d: 0.6 }, { f: 349.23, d: 1.2 }
+        ];
+
+        let currentTime = 0;
+        notes.forEach((note) => {
+          setTimeout(() => {
+            if (!this.muted) {
+              this.playTone(note.f, note.d, 'sine', 0.15);
+            }
+          }, currentTime * 1000);
+          currentTime += note.d + 0.1;
+        });
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    /* ================= GAME STATE & LOGIC ================= */
+    const WINNING_COMBOS = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+      [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+      [0, 4, 8], [2, 4, 6]             // Diagonals
+    ];
+
+    let board = ['', '', '', '', '', '', '', '', ''];
+    let currentPlayer = 'X';
+    let isVsAI = true;
+    let isGameActive = true;
+
+    // DOM Elements
+    const cells = document.querySelectorAll('.cell-btn');
+    const statusMessage = document.getElementById('statusMessage');
+    const playerXBadge = document.getElementById('playerXBadge');
+    const playerOBadge = document.getElementById('playerOBadge');
+    const playerOLabel = document.getElementById('playerOLabel');
+    const modeVsAIBtn = document.getElementById('modeVsAI');
+    const modeVsFriendBtn = document.getElementById('modeVsFriend');
+    const resetGameBtn = document.getElementById('resetGameBtn');
+    const drawNotification = document.getElementById('drawNotification');
+    const gameView = document.getElementById('gameView');
+    const birthdayView = document.getElementById('birthdayView');
+
+    function handleCellClick(e) {
+      const index = parseInt(e.target.getAttribute('data-index'));
+
+      if (board[index] !== '' || !isGameActive) return;
+
+      makeMove(index, currentPlayer);
+
+      if (isGameActive && isVsAI && currentPlayer === 'O') {
+        // AI Turn
+        setTimeout(makeAIMove, 400);
+      }
+    }
+
+    function makeMove(index, player) {
+      board[index] = player;
+      const cell = cells[index];
+      
+      // Update Cell UI
+      if (player === 'X') {
+        cell.innerHTML = '<span class="text-pink-500 transform scale-100 transition-transform">X</span>';
+        sound.playMoveX();
+      } else {
+        cell.innerHTML = '<span class="text-cyan-400 transform scale-100 transition-transform">O</span>';
+        sound.playMoveO();
+      }
+
+      // Check result
+      const winData = checkWin(board, player);
+      if (winData) {
+        handleWin(player, winData.combo);
+        return;
+      }
+
+      if (board.every(cell => cell !== '')) {
+        handleDraw();
+        return;
+      }
+
+      // Switch Turn
+      currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      updateTurnUI();
+    }
+
+    function updateTurnUI() {
+      if (currentPlayer === 'X') {
+        statusMessage.innerText = "Player X's Turn";
+        playerXBadge.classList.remove('opacity-60', 'bg-slate-800/40', 'border-slate-800');
+        playerXBadge.classList.add('bg-slate-800/80', 'border-slate-700');
+        playerOBadge.classList.add('opacity-60', 'bg-slate-800/40', 'border-slate-800');
+        playerOBadge.classList.remove('bg-slate-800/80', 'border-slate-700');
+      } else {
+        statusMessage.innerText = isVsAI ? "AI Thinking..." : "Player O's Turn";
+        playerOBadge.classList.remove('opacity-60', 'bg-slate-800/40', 'border-slate-800');
+        playerOBadge.classList.add('bg-slate-800/80', 'border-slate-700');
+        playerXBadge.classList.add('opacity-60', 'bg-slate-800/40', 'border-slate-800');
+        playerXBadge.classList.remove('bg-slate-800/80', 'border-slate-700');
+      }
+    }
+
+    function checkWin(currentBoard, player) {
+      for (let combo of WINNING_COMBOS) {
+        if (
+          currentBoard[combo[0]] === player &&
+          currentBoard[combo[1]] === player &&
+          currentBoard[combo[2]] === player
+        ) {
+          return { winner: player, combo };
+        }
+      }
+      return null;
+    }
+
+    function makeAIMove() {
+      if (!isGameActive) return;
+
+      // Smart AI logic: Try to win, block opponent, or take center/random
+      let bestMove = findBestMove('O') || findBestMove('X') || getCenterOrRandom();
+
+      if (bestMove !== null && bestMove !== undefined) {
+        makeMove(bestMove, 'O');
+      }
+    }
+
+    function findBestMove(player) {
+      for (let combo of WINNING_COMBOS) {
+        const [a, b, c] = combo;
+        if (board[a] === player && board[b] === player && board[c] === '') return c;
+        if (board[a] === player && board[c] === player && board[b] === '') return b;
+        if (board[b] === player && board[c] === player && board[a] === '') return a;
+      }
+      return null;
+    }
+
+    function getCenterOrRandom() {
+      if (board[4] === '') return 4;
+      const availableIndices = board.map((val, idx) => val === '' ? idx : null).filter(val => val !== null);
+      if (availableIndices.length === 0) return null;
+      return availableIndices[Math.floor(Math.random() * availableIndices.length)];
+    }
+
+    function handleWin(winner, combo) {
+      isGameActive = false;
+      sound.playWinSFX();
+
+      // Highlight winning cells
+      combo.forEach(idx => {
+        cells[idx].classList.add('winning-cell');
+      });
+
+      statusMessage.innerText = `🎉 Player ${winner} Wins! 🎉`;
+
+      // Trigger redirect to Happy Birthday blank/celebration page
+      setTimeout(() => {
+        transitionToBirthdayPage();
+      }, 1200);
+    }
+
+    function handleDraw() {
+      isGameActive = false;
+      statusMessage.innerText = "Game Tied!";
+      drawNotification.classList.remove('hidden');
+    }
+
+    function resetGame() {
+      board = ['', '', '', '', '', '', '', '', ''];
+      currentPlayer = 'X';
+      isGameActive = true;
+      drawNotification.classList.add('hidden');
+
+      cells.forEach(cell => {
+        cell.innerHTML = '';
+        cell.classList.remove('winning-cell');
+      });
+
+      updateTurnUI();
+    }
+
+    /* ================= BIRTHDAY PAGE TRANSITION ================= */
+    function transitionToBirthdayPage() {
+      // Fade out Tic-Tac-Toe Game View
+      gameView.classList.add('opacity-0', 'scale-90');
+      
+      setTimeout(() => {
+        gameView.classList.add('hidden');
+        
+        // Show Birthday View
+        birthdayView.classList.remove('hidden');
+        setTimeout(() => {
+          birthdayView.classList.remove('opacity-0', 'scale-95');
+          birthdayView.classList.add('opacity-100', 'scale-100');
+        }, 50);
+
+        // Start Party FX
+        sound.playHappyBirthdaySong();
+        startConfetti();
+      }, 700);
+    }
+
+    // Interactive Candles
+    const cakeContainer = document.getElementById('cakeContainer');
+    cakeContainer.addEventListener('click', () => {
+      const flames = document.querySelectorAll('.flame');
+      flames.forEach(flame => {
+        flame.classList.toggle('hidden');
+      });
+      sound.playTone(800, 0.2, 'sine');
+    });
+
+    /* ================= CANVAS CONFETTI & PARTICLES ================= */
+    const canvas = document.getElementById('particleCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let width = canvas.width = window.innerWidth;
+    let height = canvas.height = window.innerHeight;
+
+    window.addEventListener('resize', () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    });
+
+    class Particle {
+      constructor(isConfetti = false) {
+        this.reset(isConfetti);
+      }
+
+      reset(isConfetti = false) {
+        this.x = Math.random() * width;
+        this.y = isConfetti ? -10 : Math.random() * height;
+        this.size = isConfetti ? Math.random() * 8 + 4 : Math.random() * 3 + 1;
+        this.speedY = isConfetti ? Math.random() * 3 + 2 : Math.random() * -0.5 - 0.2;
+        this.speedX = Math.random() * 2 - 1;
+        this.color = isConfetti 
+          ? ['#ec4899', '#a855f7', '#3b82f6', '#f59e0b', '#10b981', '#f43f5e'][Math.floor(Math.random() * 6)]
+          : 'rgba(255, 255, 255, ' + (Math.random() * 0.3 + 0.1) + ')';
+        this.rotation = Math.random() * 360;
+        this.rotationSpeed = Math.random() * 10 - 5;
+        this.isConfetti = isConfetti;
+      }
+
+      update() {
+        this.y += this.speedY;
+        this.x += this.speedX;
+        this.rotation += this.rotationSpeed;
+
+        if (this.isConfetti) {
+          if (this.y > height) this.reset(true);
+        } else {
+          if (this.y < 0) this.y = height;
+          if (this.x < 0 || this.x > width) this.x = Math.random() * width;
+        }
+      }
+
+      draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate((this.rotation * Math.PI) / 180);
+        ctx.fillStyle = this.color;
+
+        if (this.isConfetti) {
+          ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size * 1.5);
+        } else {
+          ctx.beginPath();
+          ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    const particles = [];
+    for (let i = 0; i < 40; i++) {
+      particles.push(new Particle(false));
+    }
+
+    function startConfetti() {
+      for (let i = 0; i < 70; i++) {
+        particles.push(new Particle(true));
+      }
+    }
+
+    function animateParticles() {
+      ctx.clearRect(0, 0, width, height);
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+      requestAnimationFrame(animateParticles);
+    }
+
+    animateParticles();
+
+    /* ================= EVENT LISTENERS ================= */
+    cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+
+    resetGameBtn.addEventListener('click', resetGame);
+
+    // Mode Toggle Logic
+    modeVsAIBtn.addEventListener('click', () => {
+      isVsAI = true;
+      playerOLabel.innerText = "AI Bot";
+      modeVsAIBtn.className = "flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 bg-pink-600 text-white shadow-md flex items-center justify-center gap-2";
+      modeVsFriendBtn.className = "flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold text-slate-400 hover:text-white transition-all duration-300 flex items-center justify-center gap-2";
+      resetGame();
+    });
+
+    modeVsFriendBtn.addEventListener('click', () => {
+      isVsAI = false;
+      playerOLabel.innerText = "Player O";
+      modeVsFriendBtn.className = "flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 bg-pink-600 text-white shadow-md flex items-center justify-center gap-2";
+      modeVsAIBtn.className = "flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold text-slate-400 hover:text-white transition-all duration-300 flex items-center justify-center gap-2";
+      resetGame();
+    });
+
+    // Sound Toggle
+    const soundToggle = document.getElementById('soundToggle');
+    const soundIcon = document.getElementById('soundIcon');
+    soundToggle.addEventListener('click', () => {
+      sound.muted = !sound.muted;
+      if (sound.muted) {
+        soundIcon.className = "fas fa-volume-mute text-lg text-slate-400";
+      } else {
+        soundIcon.className = "fas fa-volume-up text-lg text-amber-400";
+        sound.playTone(600, 0.1);
+      }
+    });
+
+    // Birthday View Buttons
+    document.getElementById('playAgainBtn').addEventListener('click', () => {
+      birthdayView.classList.add('opacity-0', 'scale-95');
+      setTimeout(() => {
+        birthdayView.classList.add('hidden');
+        gameView.classList.remove('hidden');
+        setTimeout(() => {
+          gameView.classList.remove('opacity-0', 'scale-90');
+          gameView.classList.add('opacity-100', 'scale-100');
+        }, 50);
+        resetGame();
+      }, 500);
+    });
+
+    document.getElementById('musicToggleBtn').addEventListener('click', () => {
+      sound.playHappyBirthdaySong();
+    });
+
+    // Photo Upload Listener
+    const photoUpload = document.getElementById('photoUpload');
+    const birthdayPhoto = document.getElementById('birthdayPhoto');
+
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'tic-tac-toe-bday';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+
+    let db = null;
+    let auth = null;
+    let currentPhotoData = "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&q=80&w=600";
+    let currentFriendName = "";
+    let currentMessage = "May your year ahead be filled with laughter, joy, boundless success, and endless reason to celebrate! Keep shining bright! 🌟";
+    let currentFitMode = "contain";
+
+    // DOM Elements for Customization Modal
+    const customizeModal = document.getElementById('customizeModal');
+    const openCustomizeBtn = document.getElementById('openCustomizeBtn');
+    const openCustomizeBtn2 = document.getElementById('openCustomizeBtn2');
+    const closeCustomizeBtn = document.getElementById('closeCustomizeBtn');
+    const customizeForm = document.getElementById('customizeForm');
+    const customNameInput = document.getElementById('customNameInput');
+    const customPhotoFile = document.getElementById('customPhotoFile');
+    const customPhotoUrl = document.getElementById('customPhotoUrl');
+    const customPhotoPreview = document.getElementById('customPhotoPreview');
+    const customMsgInput = document.getElementById('customMsgInput');
+    const bdayTitle = document.getElementById('bdayTitle');
+    const birthdayCustomMsg = document.getElementById('birthdayCustomMsg');
+    const toastNotification = document.getElementById('toastNotification');
+    const toastMsg = document.getElementById('toastMsg');
+
+    // Toast Notification helper
+    function showToast(message) {
+      toastMsg.innerText = message;
+      toastNotification.classList.remove('translate-y-20', 'opacity-0');
+      toastNotification.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toastNotification.classList.remove('translate-y-0', 'opacity-100');
+        toastNotification.classList.add('translate-y-20', 'opacity-0');
+      }, 3500);
+    }
+
+    // Apply configuration across UI
+    function applyCardConfig(config) {
+      if (!config) return;
+
+      if (config.fitMode) {
+        currentFitMode = config.fitMode;
+      }
+
+      if (config.photo) {
+        currentPhotoData = config.photo;
+        if (birthdayPhoto) birthdayPhoto.src = config.photo;
+        const birthdayPhotoBg = document.getElementById('birthdayPhotoBg');
+        if (birthdayPhotoBg) birthdayPhotoBg.src = config.photo;
+        if (customPhotoPreview) customPhotoPreview.src = config.photo;
+      }
+
+      if (birthdayPhoto) {
+        if (currentFitMode === 'cover') {
+          birthdayPhoto.className = "relative z-10 w-full h-64 sm:h-80 object-cover rounded-lg transition-transform duration-500 group-hover:scale-105 shadow-md";
+        } else {
+          birthdayPhoto.className = "relative z-10 w-full max-h-80 sm:max-h-[360px] object-contain rounded-lg transition-transform duration-500 group-hover:scale-105 drop-shadow-md";
+        }
+      }
+
+      if (config.name) {
+        currentFriendName = config.name;
+        if (bdayTitle) bdayTitle.innerText = `Happy Birthday, ${config.name}!`;
+      } else {
+        if (bdayTitle) bdayTitle.innerText = `Happy Birthday!`;
+      }
+      if (config.message) {
+        currentMessage = config.message;
+        if (birthdayCustomMsg) birthdayCustomMsg.innerText = config.message;
+      }
+    }
+
+    // Image Compression Helper
+    function compressImage(file, maxWidth = 800, quality = 0.8) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function initCloudStorage() {
+      // 1. Try local cache first
+      try {
+        const localSaved = localStorage.getItem('bday_permanent_config');
+        if (localSaved) {
+          applyCardConfig(JSON.parse(localSaved));
+        }
+      } catch(e) {}
+
+      // 2. Try Firestore if available
+      if (!firebaseConfig) return;
+      try {
+        const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+        const { getAuth, signInWithCustomToken, signInAnonymously } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+        const { getFirestore, doc, onSnapshot } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+
+        const app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+
+        if (!auth.currentUser) return;
+
+        const cardDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'birthday_card');
+        onSnapshot(cardDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const cloudData = docSnap.data();
+            applyCardConfig(cloudData);
+            try { localStorage.setItem('bday_permanent_config', JSON.stringify(cloudData)); } catch(e){}
+          }
+        }, (err) => {
+          console.warn("Firestore sync warning:", err);
+        });
+      } catch (err) {
+        console.warn("Cloud storage init error:", err);
+      }
+    }
+
+    // Modal Control logic
+    function openModal() {
+      customNameInput.value = currentFriendName;
+      customMsgInput.value = currentMessage;
+      customPhotoPreview.src = currentPhotoData;
+      customPhotoUrl.value = currentPhotoData.startsWith('http') ? currentPhotoData : '';
+      if (currentFitMode === 'cover') {
+        const fitCover = document.getElementById('fitCover');
+        if (fitCover) fitCover.checked = true;
+      } else {
+        const fitContain = document.getElementById('fitContain');
+        if (fitContain) fitContain.checked = true;
+      }
+      customizeModal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      customizeModal.classList.add('hidden');
+    }
+
+    if (openCustomizeBtn) openCustomizeBtn.addEventListener('click', openModal);
+    if (openCustomizeBtn2) openCustomizeBtn2.addEventListener('click', openModal);
+    if (closeCustomizeBtn) closeCustomizeBtn.addEventListener('click', closeModal);
+
+    // Live URL preview
+    customPhotoUrl.addEventListener('input', (e) => {
+      const url = e.target.value.trim();
+      if (url) {
+        customPhotoPreview.src = url;
+      }
+    });
+
+    // File selection handling
+    customPhotoFile.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) {
+        try {
+          const compressed = await compressImage(file);
+          customPhotoPreview.src = compressed;
+          customPhotoUrl.value = '';
+        } catch(e) {
+          console.error("Error processing file:", e);
+        }
+      }
+    });
+
+    // Form submission
+    customizeForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const selectedFit = document.querySelector('input[name="fitMode"]:checked')?.value || 'contain';
+
+      const newConfig = {
+        name: customNameInput.value.trim(),
+        photo: customPhotoPreview.src,
+        message: customMsgInput.value.trim(),
+        fitMode: selectedFit,
+        updatedAt: Date.now()
+      };
+
+      // Apply locally
+      applyCardConfig(newConfig);
+      try {
+        localStorage.setItem('bday_permanent_config', JSON.stringify(newConfig));
+      } catch(e) {}
+
+      // Save to Cloud Storage
+      if (db && auth && auth.currentUser) {
+        try {
+          const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+          const cardDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'birthday_card');
+          await setDoc(cardDocRef, newConfig);
+        } catch (err) {
+          console.error("Cloud save failed:", err);
+        }
+      }
+
+      closeModal();
+      showToast("Friend's Photo & Wish Saved Permanently! 🎉");
+    });
+
+    initCloudStorage();
+  </script>
+</body>
+</html>
